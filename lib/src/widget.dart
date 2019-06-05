@@ -25,6 +25,9 @@ class BottomExpandableAppBar extends StatefulWidget {
 
   final Decoration expandedDecoration;
   final Decoration appBarDecoration;
+  
+  final double elevation;
+  final double notchMargin;
 
   BottomExpandableAppBar({
     Key key,
@@ -43,6 +46,8 @@ class BottomExpandableAppBar extends StatefulWidget {
     this.expandedDecoration,
     this.controller,
     this.useMax: false,
+    this.elevation = 0,
+    this.notchMargin = 5,
   })  : assert(!(expandedBackColor != null && expandedDecoration != null)),
         super(key: key);
 
@@ -117,7 +122,8 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
 
     return BottomAppBar(
       color: Colors.transparent,
-      elevation: 0,
+      notchMargin: widget.notchMargin,
+      elevation: widget.elevation,
       child: Stack(
         //TODO: Find out how to get top app bar overlap body content of scaffold 
         alignment: widget.attachSide == Side.Bottom
@@ -162,7 +168,7 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
                 ? _BottomAppBarClipper(
                     geometry: Scaffold.geometryOf(context),
                     shape: widget.shape,
-                    notchMargin: 5,
+                    notchMargin: widget.notchMargin,
                     buttonOffset: widget.bottomOffset,
                   )
                 : null,
