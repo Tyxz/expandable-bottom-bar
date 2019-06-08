@@ -1,3 +1,5 @@
+import 'dart:math' show max, min;
+
 import 'package:expandable_bottom_bar/src/controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,9 +27,28 @@ class BottomExpandableAppBar extends StatefulWidget {
 
   final Decoration expandedDecoration;
   final Decoration appBarDecoration;
-  
+
+  /// Elevation value of the expanded app bar to comply to material design guide lines.
+  /// The following elevations are possible:
+  /// 1, 2, 3, 4, 6, 8, 12
+  /// The app bar will have twice the elevation
+  /// Will only work with [appBarDecoration] = null or [expandedDecoration] = null
   final double elevation;
+
+  /// Margin of the notch to the fab
   final double notchMargin;
+
+  /// Transition rate of the expanding bottom app bar
+  /// value < 1.0 will result in a at least partly transparent background
+  /// best used together with with [snap] = true in the controller settings
+  final double transitionRate;
+
+  /// Handles, if the transition between a closed and opened app bar will
+  /// be transparent. It is based on the controller animation value.
+  /// Therefore, best used with [snap] = true.
+  /// Otherwise, partly transparency will be the result.
+  /// Also, it should be set together with [bottomOffset] = 0.
+  final bool transparentTransition;
 
   BottomExpandableAppBar({
     Key key,
@@ -48,7 +69,10 @@ class BottomExpandableAppBar extends StatefulWidget {
     this.useMax: false,
     this.elevation = 0,
     this.notchMargin = 5,
+    this.transparentTransition: false,
+    this.transitionRate = 2,
   })  : assert(!(expandedBackColor != null && expandedDecoration != null)),
+        assert(!(bottomAppBarColor != null && appBarDecoration != null)),
         super(key: key);
 
   @override
@@ -81,8 +105,7 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
   @override
   void dispose() {
     if (_controller != null)
-      _controller.state
-          .removeListener(_handleBottomBarControllerAnimationTick);
+      _controller.state.removeListener(_handleBottomBarControllerAnimationTick);
     // We don't own the _controller Animation, so it's not disposed here.
     super.dispose();
   }
@@ -104,13 +127,11 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
     if (newController == _controller) return;
 
     if (_controller != null) {
-      _controller.state
-          .removeListener(_handleBottomBarControllerAnimationTick);
+      _controller.state.removeListener(_handleBottomBarControllerAnimationTick);
     }
     _controller = newController;
     if (_controller != null) {
-      _controller.state
-          .addListener(_handleBottomBarControllerAnimationTick);
+      _controller.state.addListener(_handleBottomBarControllerAnimationTick);
     }
   }
 
@@ -119,13 +140,14 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
     final finalHeight = (widget.useMax && widget.constraints != null)
         ? widget.constraints.biggest.height
         : widget.expandedHeight;
-
+    final expandedElevation = min(12, widget.elevation);
+    final barElevation = min(24, expandedElevation * 2);
     return BottomAppBar(
       color: Colors.transparent,
       notchMargin: widget.notchMargin,
-      elevation: widget.elevation,
+      //elevation: widget.elevation,
       child: Stack(
-        //TODO: Find out how to get top app bar overlap body content of scaffold 
+        //TODO: Find out how to get top app bar overlap body content of scaffold
         alignment: widget.attachSide == Side.Bottom
             ? Alignment.bottomCenter
             : Alignment.topCenter,
@@ -135,19 +157,28 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
                 EdgeInsets.symmetric(horizontal: widget.horizontalMargin ?? 0),
             child: Stack(
               children: [
-                Container(
-                  height: panelState * finalHeight +
-                      widget.appBarHeight +
-                      widget.bottomOffset,
-                  decoration: widget.expandedDecoration ??
-                      BoxDecoration(
-                        color: widget.expandedBackColor ??
-                            Theme.of(context).backgroundColor,
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                  child: Opacity(
-                      opacity: panelState > 0.25 ? 1 : panelState * 4,
-                      child: widget.expandedBody),
+                Opacity(
+                  opacity: widget.transparentTransition
+                      ? max(
+                          0,
+                          min(1, widget.transitionRate * panelState),
+                        )
+                      : 1,
+                  child: Container(
+                    height: panelState * finalHeight +
+                        widget.appBarHeight +
+                        widget.bottomOffset,
+                    decoration: widget.expandedDecoration ??
+                        BoxDecoration(
+                          color: widget.expandedBackColor ??
+                              Theme.of(context).backgroundColor,
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: kElevationToShadow[expandedElevation],
+                        ),
+                    child: Opacity(
+                        opacity: panelState > 0.25 ? 1 : panelState * 4,
+                        child: widget.expandedBody),
+                  ),
                 ),
               ],
             ),
@@ -159,8 +190,12 @@ class _BottomExpandableAppBarState extends State<BottomExpandableAppBar> {
           ),
           ClipPath(
             child: Container(
-              color: widget.bottomAppBarColor ??
-                  Theme.of(context).bottomAppBarColor,
+              decoration: widget.appBarDecoration ??
+                  BoxDecoration(
+                    color: widget.bottomAppBarColor ??
+                        Theme.of(context).bottomAppBarColor,
+                    boxShadow: kElevationToShadow[barElevation],
+                  ),
               height: widget.appBarHeight,
               child: widget.bottomAppBarBody,
             ),
